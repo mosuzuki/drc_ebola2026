@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DRC Ebola 2026 Dashboard</title>
+  <link rel="preconnect" href="https://unpkg.com" />
+  <link rel="preconnect" href="https://cdn.plot.ly" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title-block">
+      <div id="pageEyebrow" class="eyebrow">自動更新型 SitRep ダッシュボード</div>
+      <h1 id="pageTitle">DRC エボラ流行ダッシュボード 2026</h1>
+      <p id="pageSubtitle" class="subtitle">DRCのSitRepから抽出した確定症例・死亡例・health zone別分布・短期予測・最終サイズ推定を簡潔に表示します。</p>
+    </div>
+    <div class="header-actions">
+      <div class="language-toggle" aria-label="Language selector">
+        <button id="langJa" type="button" class="lang-btn active">日本語</button>
+        <button id="langEn" type="button" class="lang-btn">EN</button>
+      </div>
+      <div class="status-card">
+        <span id="dataStatusLabel" class="label">データ更新状況</span>
+        <strong id="dataStatus">読み込み中</strong>
+        <span id="lastUpdated">SitRep自動取得機能はGitHub Actionsで6時間ごとに実行されます。</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="kpi-grid" aria-label="Key indicators">
+      <article class="kpi-card"><span id="kpiTotalLabel">DRC 確定症例数</span><strong id="kpiTotal">—</strong><small id="kpiTotalNote">—</small></article>
+      <article class="kpi-card"><span id="kpiDrcDeathsLabel">DRC 確定死亡数</span><strong id="kpiDrcDeaths">—</strong><small id="kpiDrcDeathsNote">—</small></article>
+      <article class="kpi-card"><span id="kpiUgandaCasesLabel">ウガンダ 確定症例数</span><strong id="kpiUgandaCases">—</strong><small id="kpiUgandaCasesNote">—</small></article>
+      <article class="kpi-card"><span id="kpiUgandaDeathsLabel">ウガンダ 確定死亡数</span><strong id="kpiUgandaDeaths">—</strong><small id="kpiUgandaDeathsNote">—</small></article>
+    </section>
+
+    <section class="dashboard-grid" aria-label="Dashboard panels">
+      <article class="panel map-panel">
+        <div class="panel-head">
+          <div>
+            <h2 id="mapTitle">Health zone別エボラ確定症例</h2>
+            <p id="mapDescription">確定症例をhealth zone重心上の比例円で表示します。</p>
+          </div>
+          <button id="fitMap" class="ghost" type="button">地図を合わせる</button>
+        </div>
+        <div id="map"></div>
+        <div class="timeline-controls-title">
+          <strong id="sitrepTimePointTitle">SitRep時点</strong>
+          <span id="sitrepTimePointHelp">報告日別に累積症例または直近1週間の増加を表示します。</span>
+        </div>
+        <div class="report-date-slider" aria-label="SitRep reporting date controls">
+          <div class="slider-head report-slider-head">
+            <div>
+              <strong id="reportingDateMapTitle">地図に表示する報告日</strong>
+              <span id="reportDateSliderLabel">—</span>
+              <small id="caseModeLabel">累積症例</small>
+            </div>
+            <div class="report-date-actions">
+              <select id="reportDateSelect" aria-label="Reporting date"></select>
+              <div class="toggle-group case-mode-toggle" role="group" aria-label="Case display mode">
+                <button id="modeCumulativeCases" type="button" class="toggle active">累積</button>
+                <button id="modeRecentIncrease" type="button" class="toggle">直近1週間</button>
+              </div>
+            </div>
+          </div>
+          <input id="reportDateSlider" type="range" min="0" max="0" step="1" value="0" list="reportDateTicks" />
+          <datalist id="reportDateTicks"></datalist>
+          <div class="slider-months"><span id="reportDateStartLabel">—</span><span id="reportDateEndLabel">—</span></div>
+        </div>
+        <div class="map-legend" aria-label="Map legend">
+          <span><i class="legend-dot cases"></i><span id="legendCases">確定症例</span></span>
+          <span><i class="legend-dot recent"></i><span id="legendRecent">直近1週間の増加</span></span>
+        </div>
+      </article>
+
+      <article class="panel chart-panel">
+        <h2 id="reportedCasesTitle">累積症例数</h2>
+        <p id="reportedCasesDesc">DRC確定症例数をSitRep報告日別に表示します。地図で選択中の日付を強調します。</p>
+        <div id="epiTimelineChart" class="chart"></div>
+      </article>
+
+      <article class="panel chart-panel">
+        <div class="chart-block-head">
+          <div>
+            <h2 id="forecastTitle">短期予測</h2>
+            <p id="forecastDesc">直近の報告確定症例数に基づく簡易的な短期予測です。</p>
+          </div>
+          <div class="control-stack">
+            <select id="forecastHorizonSelect" aria-label="Forecast horizon">
+              <option value="7" selected>7 days</option>
+              <option value="14">14 days</option>
+            </select>
+          </div>
+        </div>
+        <div id="forecastChart" class="chart"></div>
+        <div id="forecastStats" class="chart-note"></div>
+      </article>
+
+      <article class="panel chart-panel">
+        <div class="chart-block-head">
+          <div>
+            <h2 id="finalSizeTitle">アウトブレイク最終サイズ推定</h2>
+            <p id="finalSizeDesc">Branching processとAI支援による過去流行マッチングを組み合わせた推定です。</p>
+          </div>
+          <div class="control-stack">
+            <select id="finalSizeScenarioSelect" aria-label="Final size model">
+              <option value="ensemble" selected>Ensemble</option>
+              <option value="branching">Branching process</option>
+              <option value="historical_ai">AI-assisted historical matching</option>
+            </select>
+          </div>
+        </div>
+        <div id="finalSizeSummary" class="final-size-summary-grid"></div>
+        <div id="finalSizeChart" class="chart"></div>
+        <div id="finalSizeStats" class="chart-note"></div>
+      </article>
+    </section>
+  </main>
+
+  <footer id="footerText">Data are updated from INSP DRC SitRep PDFs by scheduled GitHub Actions. Projections are exploratory and should be reviewed by experts.</footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
